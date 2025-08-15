@@ -542,8 +542,10 @@ static void dyninst_lib(unsigned int cpu_index, void *udata) {
 }
 
 static uint8_t py_init = false;
+static uint8_t peripheral_server_init = true;
 static PyObject *fastdyn_interceptor = NULL;
 static PyObject *halucinator_initialize = NULL;
+
 void fastdyn_callback(unsigned int cpu_index, void *udata) {
     // uint32_t val;
     // uint32_t r0_val;
@@ -649,7 +651,8 @@ void fastdyn_callback(unsigned int cpu_index, void *udata) {
             DEBUG_LOG("input pc: %s\n",input);
 
             //Build the arguments. -> PC Value passed by the user when registering the callback!
-            PyObject *fastdyn_callback_args = PyTuple_Pack(1, PyUnicode_FromString(input));
+            PyObject *fastdyn_callback_args = PyTuple_Pack(2, PyUnicode_FromString(input), PyLong_FromLong(peripheral_server_init));
+            peripheral_server_init = false;
 
             // Call the Initialize function
             PyObject *fastdyn_callback_return_val = PyObject_CallObject(fastdyn_interceptor, fastdyn_callback_args);
