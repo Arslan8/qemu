@@ -230,8 +230,8 @@ void update_reg(int reg, int target) {
 	}
 #endif
 }
-void log_reg(uint8_t * buffer, uint16_t * index, int reg);
-void log_reg(uint8_t * buffer, uint16_t * index, int reg) {
+void log_reg(uint8_t * buffer, uint16_t * index, void *consumer_index, int reg);
+void log_reg(uint8_t * buffer, uint16_t * index, void *consumer_index, int reg) {
 	if (reg < 16) {
 	TCGv_i32 t= cpu_R[reg];
 	
@@ -240,7 +240,26 @@ void log_reg(uint8_t * buffer, uint16_t * index, int reg) {
 	TCGv_ptr tmp_ptr = tcg_temp_new_ptr();
 
     TCGv_i32 index_val_t = tcg_temp_ebb_new_i32();
-    tcg_gen_ld16u_i32(index_val_t, index_t, 0);
+
+    if (consumer_index) {
+        TCGLabel *wait = gen_new_label();
+        TCGv_ptr consumer_index_t = tcg_constant_ptr((intptr_t)consumer_index);
+        TCGv_i32 consumed_index_t = tcg_temp_ebb_new_i32();
+        TCGv_i32 next_index_t = tcg_temp_ebb_new_i32();
+
+        gen_set_label(wait);
+        tcg_gen_ld16u_i32(index_val_t, index_t, 0);
+        tcg_gen_addi_i32(next_index_t, index_val_t, 4);
+        tcg_gen_ext16u_i32(next_index_t, next_index_t);
+        tcg_gen_ld16u_i32(consumed_index_t, consumer_index_t, 0);
+        tcg_gen_brcond_i32(TCG_COND_EQ, next_index_t, consumed_index_t, wait);
+
+        tcg_temp_free_ptr(consumer_index_t);
+        tcg_temp_free_i32(consumed_index_t);
+        tcg_temp_free_i32(next_index_t);
+    } else {
+        tcg_gen_ld16u_i32(index_val_t, index_t, 0);
+    }
 
     //temp has index now
 	tcg_gen_ext_i32_ptr(tmp_ptr, index_val_t);     
