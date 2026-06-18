@@ -290,11 +290,11 @@ typedef struct {
     uint16_t index;     // Current index into the buffer
 } Buffy;
 
-extern void log_reg(uint8_t * buffer, uint16_t * index, int reg);
+extern void log_reg(uint8_t * buffer, uint16_t * index, void *consumer_index, int reg);
 void gen_inline_log_reg_cb(struct qemu_plugin_inline_cb *cb);
 void gen_inline_log_reg_cb(struct qemu_plugin_inline_cb *cb) {
 	Buffy * buf = (Buffy*)(cb->entry.offset);
-	log_reg(buf->buffer, &buf->index, cb->imm);
+	log_reg(buf->buffer, &buf->index, cb->entry.data, cb->imm);
 }
 
 extern void store_io(uint8_t * addr, int reg);
