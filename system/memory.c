@@ -70,9 +70,28 @@ typedef struct unimp_exporter {
 static DEV_XPORTER exporter;
 
 void unimp_export_device(void * arg);
+bool qemu_plugin_unimp_read(const char *name, hwaddr addr, uint64_t *val, unsigned size);
+bool qemu_plugin_unimp_write(const char *name, hwaddr addr, uint64_t val, unsigned size);
+
 void unimp_export_device(void * arg) {
     DEV_XPORTER * in_ops = (DEV_XPORTER *) arg;
     memcpy(&exporter, (uint8_t *)in_ops, sizeof(DEV_XPORTER));
+}
+
+bool qemu_plugin_unimp_read(const char *name, hwaddr addr, uint64_t *val, unsigned size)
+{
+    if (exporter.read) {
+        return exporter.read(name, addr, val, size) == 0;
+    }
+    return false;
+}
+
+bool qemu_plugin_unimp_write(const char *name, hwaddr addr, uint64_t val, unsigned size)
+{
+    if (exporter.write) {
+        return exporter.write(name, addr, val, size) == 0;
+    }
+    return false;
 }
 
 

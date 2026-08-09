@@ -24,6 +24,7 @@
 #include "exec/translation-block.h"
 #include "tcg/tcg-op.h"
 #include "tcg/tcg-op-gvec.h"
+#include "tcg/tcg-temp-internal.h"
 #include "exec/translator.h"
 #include "exec/target_page.h"
 #include "fpu/softfloat.h"
@@ -3926,4 +3927,93 @@ void x86_translate_code(CPUState *cpu, TranslationBlock *tb,
     DisasContext dc;
 
     translator_loop(cpu, tb, max_insns, pc, host_pc, &i386_tr_ops, &dc.base);
+}
+
+void update_reg_reg(int reg, int source);
+void update_reg_reg(int reg, int source) {
+    if (reg < CPU_NB_REGS && source < CPU_NB_REGS) {
+        tcg_gen_mov_tl(cpu_regs[reg], cpu_regs[source]);
+    } else if (reg == 16 && source < CPU_NB_REGS) {
+        tcg_gen_mov_tl(cpu_eip, cpu_regs[source]);
+        tcg_gen_exit_tb(NULL, 0);
+    }
+}
+
+void load_reg_from_mem(int reg, int source);
+void load_reg_from_mem(int reg, int source) {
+    if (reg < CPU_NB_REGS && source < CPU_NB_REGS) {
+        TCGv_ptr addr_ptr = tcg_temp_new_ptr();
+        tcg_gen_trunc_i64_ptr(addr_ptr, (TCGv_i64)cpu_regs[source]);
+        tcg_gen_ld_tl(cpu_regs[reg], addr_ptr, 0);
+        tcg_temp_free_ptr(addr_ptr);
+    } else if (reg == 16 && source < CPU_NB_REGS) {
+        TCGv_ptr addr_ptr = tcg_temp_new_ptr();
+        tcg_gen_trunc_i64_ptr(addr_ptr, (TCGv_i64)cpu_regs[source]);
+        tcg_gen_ld_tl(cpu_eip, addr_ptr, 0);
+        tcg_temp_free_ptr(addr_ptr);
+        tcg_gen_exit_tb(NULL, 0);
+    }
+}
+
+void store_reg_to_mem(int reg, int destination);
+void store_reg_to_mem(int reg, int destination) {
+    if (reg < CPU_NB_REGS && destination < CPU_NB_REGS) {
+        TCGv_ptr addr_ptr = tcg_temp_new_ptr();
+        tcg_gen_trunc_i64_ptr(addr_ptr, (TCGv_i64)cpu_regs[destination]);
+        tcg_gen_st_tl(cpu_regs[reg], addr_ptr, 0);
+        tcg_temp_free_ptr(addr_ptr);
+    }
+}
+
+void return_from_runtime(void);
+void return_from_runtime(void) {
+    tcg_gen_exit_tb(NULL, 0);
+}
+
+void update_reg(int reg, int target);
+void update_reg(int reg, int target) {
+    if (reg < CPU_NB_REGS) {
+        tcg_gen_movi_tl(cpu_regs[reg], target);
+    } else if (reg == 16) {
+        tcg_gen_movi_tl(cpu_eip, target);
+        tcg_gen_exit_tb(NULL, 0);
+    }
+}
+
+void log_reg(uint8_t * buffer, uint16_t * index, int reg);
+void log_reg(uint8_t * buffer, uint16_t * index, int reg) {
+    if (reg < CPU_NB_REGS) {
+        TCGv_ptr ptr = tcg_constant_ptr((intptr_t)buffer);
+        TCGv_ptr index_t = tcg_constant_ptr((intptr_t)index);
+        TCGv_ptr tmp_ptr = tcg_temp_new_ptr();
+
+        TCGv_i32 index_val_t = tcg_temp_ebb_new_i32();
+        tcg_gen_ld16u_i32(index_val_t, index_t, 0);
+
+        tcg_gen_ext_i32_ptr(tmp_ptr, index_val_t);
+        tcg_gen_add_ptr(tmp_ptr, ptr, tmp_ptr);
+
+        tcg_gen_st_tl(cpu_regs[reg], tmp_ptr, 0);
+
+        tcg_gen_addi_i32(index_val_t, index_val_t, sizeof(target_ulong));
+        tcg_gen_st16_i32(index_val_t, index_t, 0);
+
+        tcg_temp_free_ptr(tmp_ptr);
+    }
+}
+
+void store_io(uint8_t * addr, int reg);
+void store_io(uint8_t * addr, int reg) {
+    if (reg < CPU_NB_REGS) {
+        TCGv_ptr ptr = tcg_constant_ptr((intptr_t)addr);
+        tcg_gen_st_tl(cpu_regs[reg], ptr, 0);
+    }
+}
+
+void load_io(uint8_t * addr, int reg);
+void load_io(uint8_t * addr, int reg) {
+    if (reg < CPU_NB_REGS) {
+        TCGv_ptr ptr = tcg_constant_ptr((intptr_t)addr);
+        tcg_gen_ld_tl(cpu_regs[reg], ptr, 0);
+    }
 }

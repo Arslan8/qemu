@@ -723,4 +723,43 @@ void x86_stq_phys(CPUState *cs, hwaddr addr, uint64_t val)
 
     address_space_stq(as, addr, val, attrs, NULL);
 }
+
+#include "system/cpus.h"
+
+void raise_irq(CPUState *cs, int irq_num, int secure);
+void raise_irq(CPUState *cs, int irq_num, int secure)
+{
+    if (!cs) return;
+    X86CPU *cpu = X86_CPU(cs);
+    if (cpu->apic_state) {
+        int locked = 0;
+        if (!bql_locked()) {
+            bql_lock();
+            locked = 1;
+        }
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+        if (locked) {
+            bql_unlock();
+        }
+    }
+}
+
+void pulse_irq(CPUState *cs, int irq_num);
+void pulse_irq(CPUState *cs, int irq_num)
+{
+    if (!cs) return;
+    X86CPU *cpu = X86_CPU(cs);
+    if (cpu->apic_state) {
+        int locked = 0;
+        if (!bql_locked()) {
+            bql_lock();
+            locked = 1;
+        }
+        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
+        if (locked) {
+            bql_unlock();
+        }
+    }
+}
 #endif
+

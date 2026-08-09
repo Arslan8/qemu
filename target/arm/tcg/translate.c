@@ -240,7 +240,7 @@ void log_reg(uint8_t * buffer, uint16_t * index, int reg) {
 	TCGv_ptr tmp_ptr = tcg_temp_new_ptr();
 
     TCGv_i32 index_val_t = tcg_temp_ebb_new_i32();
-    tcg_gen_ld16u_i32(index_val_t, index_t, 0);
+    tcg_gen_ld32u_i32(index_val_t, index_t, 0);
 
     //temp has index now
 	tcg_gen_ext_i32_ptr(tmp_ptr, index_val_t);     
@@ -251,7 +251,7 @@ void log_reg(uint8_t * buffer, uint16_t * index, int reg) {
 
 	//Logged, lets increment pointer for next guy
     tcg_gen_addi_i32(index_val_t, index_val_t, 4);
-    tcg_gen_st16_i32(index_val_t, index_t, 0);
+    tcg_gen_st32_i32(index_val_t, index_t, 0);
 
 	//Updated
 

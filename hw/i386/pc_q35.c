@@ -61,6 +61,8 @@
 #include "hw/uefi/var-service-api.h"
 #include "hw/i386/acpi-build.h"
 #include "target/i386/cpu.h"
+#include "hw/misc/unimp.h"
+#include "hw/pci/generic_pcie_dev.h"
 
 /* ICH9 AHCI has 6 ports */
 #define MAX_SATA_PORTS     6
@@ -122,6 +124,17 @@ static int ehci_create_ich9_with_companions(PCIBus *bus, int slot)
         pci_realize_and_unref(uhci, bus, &error_fatal);
     }
     return 0;
+}
+
+static void create_unimplemented_io_device(const char *name, hwaddr base, hwaddr size)
+{
+    DeviceState *dev = qdev_new(TYPE_UNIMPLEMENTED_DEVICE);
+    qdev_prop_set_string(dev, "name", name);
+    qdev_prop_set_uint64(dev, "size", size);
+    sysbus_realize_and_unref(SYS_BUS_DEVICE(dev), &error_fatal);
+
+    MemoryRegion *mr = sysbus_mmio_get_region(SYS_BUS_DEVICE(dev), 0);
+    memory_region_add_subregion_overlap(get_system_io(), base, mr, -1000);
 }
 
 /* PC hardware initialisation */
@@ -360,6 +373,28 @@ static void pc_q35_machine_options(MachineClass *m)
     compat_props_add(m->compat_props,
                      pc_q35_compat_defaults, pc_q35_compat_defaults_len);
 }
+
+static void base_generic_init(MachineState *machine)
+{
+    pc_q35_init(machine);
+
+    PCMachineState *pcms = PC_MACHINE(machine);
+    if (pcms->pcibus) {
+        qemu_instantiate_generic_pcie_devices(pcms->pcibus);
+    }
+
+    /* Low-priority fallback regions for dynamic plugin instrumentation */
+    create_unimplemented_device("generic_io_64", 0x0, 0xFFFFFFFFFFFFFFFFULL);
+    create_unimplemented_io_device("generic_io_port_64", 0x0, 0x10000);
+}
+
+static void base_generic_machine_options(MachineClass *m)
+{
+    pc_q35_machine_options(m);
+    m->desc = "Base Generic Machine (Q35 with MMIO and Port-IO fallback regions)";
+}
+
+DEFINE_PC_MACHINE(base_generic, "base_generic", base_generic_init, base_generic_machine_options);
 
 static void pc_q35_machine_10_1_options(MachineClass *m)
 {

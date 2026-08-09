@@ -9,7 +9,8 @@ pci_ss.add(files(
   'pci-qmp-cmds.c',
   'pcie_sriov.c',
   'shpc.c',
-  'slotid_cap.c'
+  'slotid_cap.c',
+  'generic_pcie_dev.c'
 ))
 # The functions in these modules can be used by devices too.  Since we
 # allow plugging PCIe devices into PCI buses, include them even if

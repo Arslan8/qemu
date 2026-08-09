@@ -344,7 +344,19 @@ void qemu_plugin_register_vcpu_mem_inline_per_vcpu(
     plugin_register_inline_op_on_entry(&insn->mem_cbs, rw, op, entry, imm);
 }
 
-extern void armv7m_load_elf(CPUState *cs,const char *kernel_filename);
+#include "hw/loader.h"
+
+void armv7m_load_elf(CPUState *cs, const char *kernel_filename);
+__attribute__((weak)) void armv7m_load_elf(CPUState *cs, const char *kernel_filename) {
+    uint64_t entry;
+    AddressSpace *as = cs ? cpu_get_address_space(cs, 0) : NULL;
+    if (kernel_filename && as) {
+        load_elf_ram_sym(kernel_filename, NULL, NULL, NULL,
+                         &entry, NULL, NULL,
+                         NULL, ELFDATA2LSB, EM_NONE, 1, 0, as, false, NULL);
+    }
+}
+
 void qemu_plugin_load_elf(char * elf) {
 	g_assert(current_cpu);
 	armv7m_load_elf(current_cpu, elf);
