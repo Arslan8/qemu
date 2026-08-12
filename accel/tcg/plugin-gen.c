@@ -251,12 +251,21 @@ typedef struct {
         int reg_num;       // VALUE_REGISTER and VALUE_DEREF (source register)
     } value;
 } UpdateEntry;
-extern void update_reg(int reg, int target);
+void update_reg(int reg, uint64_t target);
+void update_reg_reg(int reg, int source);
+void load_reg_from_mem(int reg, int source);
+void store_reg_to_mem(int reg, int destination);
+void load_io(uint8_t * addr, int reg);
+void store_io(uint8_t * addr, int reg);
+void return_from_runtime(void);
 
-extern void update_reg_reg(int reg, int source);
-extern void load_reg_from_mem(int reg, int source);
-extern void store_reg_to_mem(int reg, int destination);
-extern void return_from_runtime(void );
+void __attribute__((weak)) update_reg(int reg, uint64_t target) {}
+void __attribute__((weak)) update_reg_reg(int reg, int source) {}
+void __attribute__((weak)) load_reg_from_mem(int reg, int source) {}
+void __attribute__((weak)) store_reg_to_mem(int reg, int destination) {}
+void __attribute__((weak)) load_io(uint8_t * addr, int reg) {}
+void __attribute__((weak)) store_io(uint8_t * addr, int reg) {}
+void __attribute__((weak)) return_from_runtime(void) {}
 void gen_inline_update_pc_cb(struct qemu_plugin_inline_cb *cb);
 void gen_inline_update_pc_cb(struct qemu_plugin_inline_cb *cb) {
 	UpdateEntry * entry = cb->entry.data;
@@ -297,14 +306,12 @@ void gen_inline_log_reg_cb(struct qemu_plugin_inline_cb *cb) {
 	log_reg(buf->buffer, &buf->index, cb->entry.data, cb->imm);
 }
 
-extern void store_io(uint8_t * addr, int reg);
 void gen_inline_store_io_cb(struct qemu_plugin_inline_cb *cb);
 void gen_inline_store_io_cb(struct qemu_plugin_inline_cb *cb) {
 	//TODO: Little divergence, let's send the absoluute address instead of doing addition inside the store_io
     store_io((void *)cb->entry.offset, cb->imm);
 }
 
-extern void load_io(uint8_t * addr, int reg);
 void gen_inline_load_io_cb(struct qemu_plugin_inline_cb *cb);
 void gen_inline_load_io_cb(struct qemu_plugin_inline_cb *cb) {
     //TODO: Little divergence, let's send the absoluute address instead of doing addition inside the store_io

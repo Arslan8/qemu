@@ -10396,8 +10396,8 @@ void update_reg_reg64(int reg, int source) {
     }
 }
 
-void update_reg64(int reg, int target);
-void update_reg64(int reg, int target) {
+void update_reg64(int reg, uint64_t target);
+void update_reg64(int reg, uint64_t target) {
 	TCGv_i64 t= cpu_X[reg];
     tcg_gen_mov_i64(t, tcg_constant_i64(target));
 

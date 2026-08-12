@@ -1427,3 +1427,48 @@ void riscv_translate_init(void)
     load_val = tcg_global_mem_new(tcg_env, offsetof(CPURISCVState, load_val),
                              "load_val");
 }
+
+void return_from_runtime(void);
+void return_from_runtime(void) {
+    tcg_gen_exit_tb(NULL, 0);
+}
+
+void update_reg(int reg, uint64_t target);
+void update_reg(int reg, uint64_t target) {
+    if (reg > 0 && reg < 32) {
+        if (cpu_gpr[reg]) {
+            tcg_gen_movi_tl(cpu_gpr[reg], target);
+        }
+    } else if (reg == 32) {
+        tcg_gen_movi_tl(cpu_pc, target);
+        tcg_gen_exit_tb(NULL, 0);
+    }
+}
+
+void log_reg(uint8_t * buffer, uint16_t * index, int reg);
+void log_reg(uint8_t * buffer, uint16_t * index, int reg) {
+    if (reg > 0 && reg < 32 && cpu_gpr[reg]) {
+        TCGv_ptr ptr = tcg_constant_ptr((intptr_t)buffer);
+        TCGv_ptr index_t = tcg_constant_ptr((intptr_t)index);
+        TCGv_ptr tmp_ptr = tcg_temp_new_ptr();
+
+        TCGv_i32 index_val_t = tcg_temp_new_i32();
+        tcg_gen_ld16u_i32(index_val_t, index_t, 0);
+
+        tcg_gen_ext_i32_ptr(tmp_ptr, index_val_t);
+        tcg_gen_add_ptr(tmp_ptr, ptr, tmp_ptr);
+
+        tcg_gen_st_tl(cpu_gpr[reg], tmp_ptr, 0);
+
+        tcg_gen_addi_i32(index_val_t, index_val_t, sizeof(target_ulong));
+        tcg_gen_st16_i32(index_val_t, index_t, 0);
+    }
+}
+
+void store_io(uint8_t * addr, int reg);
+void store_io(uint8_t * addr, int reg) {
+    if (reg > 0 && reg < 32 && cpu_gpr[reg]) {
+        TCGv_ptr ptr = tcg_constant_ptr((intptr_t)addr);
+        tcg_gen_st_tl(cpu_gpr[reg], ptr, 0);
+    }
+}

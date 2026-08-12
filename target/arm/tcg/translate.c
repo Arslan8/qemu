@@ -205,10 +205,10 @@ void return_from_runtime(void ) {
 }
 
 #ifdef TARGET_AARCH64
-    extern void update_reg64(int reg, int target);
+    extern void update_reg64(int reg, uint64_t target);
 #endif
-void update_reg(int reg, int target);
-void update_reg(int reg, int target) {
+void update_reg(int reg, uint64_t target);
+void update_reg(int reg, uint64_t target) {
 #ifdef TARGET_AARCH64
 		update_reg64(reg, target);
 #else
@@ -270,7 +270,7 @@ void log_reg(uint8_t * buffer, uint16_t * index, void *consumer_index, int reg) 
 
 	//Logged, lets increment pointer for next guy
     tcg_gen_addi_i32(index_val_t, index_val_t, 4);
-    tcg_gen_st32_i32(index_val_t, index_t, 0);
+    tcg_gen_st16_i32(index_val_t, index_t, 0);
 
 	//Updated
 

@@ -3970,8 +3970,8 @@ void return_from_runtime(void) {
     tcg_gen_exit_tb(NULL, 0);
 }
 
-void update_reg(int reg, int target);
-void update_reg(int reg, int target) {
+void update_reg(int reg, uint64_t target);
+void update_reg(int reg, uint64_t target) {
     if (reg < CPU_NB_REGS) {
         tcg_gen_movi_tl(cpu_regs[reg], target);
     } else if (reg == 16) {
