@@ -1838,6 +1838,11 @@ static inline bool arm_gdbstub_is_aarch64(ARMCPU *cpu)
 /* Read the CONTROL register as the MRS instruction would. */
 uint32_t arm_v7m_mrs_control(CPUARMState *env, uint32_t secure);
 
+#ifndef CONFIG_USER_ONLY
+/* Write CONTROL as a debugger state update, bypassing guest privilege checks. */
+void arm_v7m_debug_write_control(CPUARMState *env, uint32_t value);
+#endif
+
 /*
  * Return a pointer to the location where we currently store the
  * stack pointer for the requested security state and thread mode.

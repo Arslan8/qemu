@@ -938,7 +938,8 @@ struct qemu_plugin_register;
 /**
  * typedef qemu_plugin_reg_descriptor - register descriptions
  *
- * @handle: opaque handle for retrieving value with qemu_plugin_read_register
+ * @handle: opaque handle for accessing the register with
+ *          qemu_plugin_read_register() or qemu_plugin_write_register()
  * @name: register name
  * @feature: optional feature descriptor, can be NULL
  */
@@ -1000,6 +1001,20 @@ bool qemu_plugin_read_memory_vaddr(uint64_t addr,
 QEMU_PLUGIN_API
 int qemu_plugin_read_register(struct qemu_plugin_register *handle,
                               GByteArray *buf);
+
+/**
+ * qemu_plugin_write_register() - write register for current vCPU
+ * @handle: a @qemu_plugin_reg_handle handle
+ * @buf: register value in target byte order
+ *
+ * This function is only available in a context that register read/write
+ * access is explicitly requested via the QEMU_PLUGIN_CB_RW_REGS flag.
+ *
+ * Returns the size of the written register. On failure returns zero.
+ */
+QEMU_PLUGIN_API
+int qemu_plugin_write_register(struct qemu_plugin_register *handle,
+                               const uint8_t *buf);
 
 /**
  * qemu_plugin_scoreboard_new() - alloc a new scoreboard

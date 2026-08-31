@@ -412,7 +412,48 @@ static int arm_gdb_get_m_systemreg(CPUState *cs, GByteArray *buf, int reg)
 
 static int arm_gdb_set_m_systemreg(CPUState *cs, uint8_t *buf, int reg)
 {
-    return 0; /* TODO */
+    ARMCPU *cpu = ARM_CPU(cs);
+    CPUARMState *env = &cpu->env;
+    uint32_t *ptr;
+    uint32_t value = ldl_p(buf);
+
+    if (reg < 0 || reg >= ARRAY_SIZE(m_sysreg_def)) {
+        return 0;
+    }
+
+    ptr = m_sysreg_ptr(env, reg, env->v7m.secure);
+    if (ptr == NULL) {
+        return 0;
+    }
+
+    switch (reg) {
+    case M_SYSREG_MSP:
+    case M_SYSREG_PSP:
+        *ptr = value & ~3;
+        break;
+    case M_SYSREG_MSPLIM:
+    case M_SYSREG_PSPLIM:
+        *ptr = value & ~7;
+        break;
+    case M_SYSREG_PRIMASK:
+    case M_SYSREG_FAULTMASK:
+        *ptr = value & 1;
+        break;
+    case M_SYSREG_BASEPRI:
+        *ptr = value & 0xff;
+        break;
+    case M_SYSREG_CONTROL:
+#ifndef CONFIG_USER_ONLY
+        arm_v7m_debug_write_control(env, value);
+        break;
+#else
+        return 0;
+#endif
+    default:
+        return 0;
+    }
+
+    return 4;
 }
 
 static GDBFeature *arm_gen_dynamic_m_systemreg_feature(CPUState *cs,

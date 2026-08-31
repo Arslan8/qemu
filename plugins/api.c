@@ -673,6 +673,13 @@ int qemu_plugin_read_register(struct qemu_plugin_register *reg, GByteArray *buf)
     return gdb_read_register(first_cpu, buf, GPOINTER_TO_INT(reg) - 1);
 }
 
+int qemu_plugin_write_register(struct qemu_plugin_register *reg,
+                               const uint8_t *buf)
+{
+    return gdb_write_register(first_cpu, (uint8_t *)buf,
+                              GPOINTER_TO_INT(reg) - 1);
+}
+
 struct qemu_plugin_scoreboard *qemu_plugin_scoreboard_new(size_t element_size)
 {
     return plugin_scoreboard_new(element_size);
