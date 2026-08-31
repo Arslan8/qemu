@@ -492,6 +492,37 @@ static void write_v7m_control_spsel(CPUARMState *env, bool new_spsel)
     write_v7m_control_spsel_for_secstate(env, new_spsel, env->v7m.secure);
 }
 
+/*
+ * Apply a CONTROL value supplied by a debugger or other out-of-band state
+ * manager. Unlike the MSR helper, this deliberately bypasses guest privilege
+ * checks, but retains the CPU-model feature masks and SPSEL bookkeeping.
+ */
+void arm_v7m_debug_write_control(CPUARMState *env, uint32_t value)
+{
+    bool secure = env->v7m.secure;
+
+    write_v7m_control_spsel(env, value & R_V7M_CONTROL_SPSEL_MASK);
+
+    if (arm_feature(env, ARM_FEATURE_M_MAIN)) {
+        env->v7m.control[secure] &= ~R_V7M_CONTROL_NPRIV_MASK;
+        env->v7m.control[secure] |= value & R_V7M_CONTROL_NPRIV_MASK;
+    }
+
+    if (cpu_isar_feature(aa32_vfp_simd, env_archcpu(env))) {
+        if (secure) {
+            env->v7m.control[M_REG_S] &= ~R_V7M_CONTROL_SFPA_MASK;
+            env->v7m.control[M_REG_S] |= value & R_V7M_CONTROL_SFPA_MASK;
+        }
+        if (secure || !arm_feature(env, ARM_FEATURE_M_SECURITY) ||
+            extract32(env->v7m.nsacr, 10, 1)) {
+            env->v7m.control[M_REG_S] &= ~R_V7M_CONTROL_FPCA_MASK;
+            env->v7m.control[M_REG_S] |= value & R_V7M_CONTROL_FPCA_MASK;
+        }
+    }
+
+    arm_rebuild_hflags(env);
+}
+
 void write_v7m_exception(CPUARMState *env, uint32_t new_exc)
 {
     /*

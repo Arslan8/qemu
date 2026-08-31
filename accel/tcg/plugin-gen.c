@@ -250,6 +250,8 @@ typedef struct {
         unsigned long imm; // VALUE_IMMEDIATE
         int reg_num;       // VALUE_REGISTER and VALUE_DEREF (source register)
     } value;
+
+    const volatile uint8_t *enabled;
 } UpdateEntry;
 void update_reg(int reg, uint64_t target);
 void update_reg_reg(int reg, int source);
@@ -266,6 +268,28 @@ void __attribute__((weak)) store_reg_to_mem(int reg, int destination) {}
 void __attribute__((weak)) load_io(uint8_t * addr, int reg) {}
 void __attribute__((weak)) store_io(uint8_t * addr, int reg) {}
 void __attribute__((weak)) return_from_runtime(void) {}
+
+static void gen_inline_update_entry(UpdateEntry *entry)
+{
+    switch (entry->value_type) {
+    case VALUE_IMMEDIATE:
+        update_reg(entry->target.reg_num, entry->value.imm);
+        break;
+    case VALUE_REGISTER:
+        if (entry->type == TARGET_DEREF) {
+            store_reg_to_mem(entry->value.reg_num, entry->target.reg_num);
+        } else {
+            update_reg_reg(entry->target.reg_num, entry->value.reg_num);
+        }
+        break;
+    case VALUE_DEREF:
+        if (entry->type == TARGET_REGISTER) {
+            load_reg_from_mem(entry->target.reg_num, entry->value.reg_num);
+        }
+        break;
+    }
+}
+
 void gen_inline_update_pc_cb(struct qemu_plugin_inline_cb *cb);
 void gen_inline_update_pc_cb(struct qemu_plugin_inline_cb *cb) {
 	UpdateEntry * entry = cb->entry.data;
@@ -274,23 +298,24 @@ void gen_inline_update_pc_cb(struct qemu_plugin_inline_cb *cb) {
 			return_from_runtime();
 			return;
 	} 
-	switch (entry->value_type) {
- 	   case VALUE_IMMEDIATE:
-			update_reg(entry->target.reg_num, entry->value.imm);
-        	break;
-	    case VALUE_REGISTER:
-			if (entry->type == TARGET_DEREF) {
-				store_reg_to_mem(entry->value.reg_num, entry->target.reg_num);
-			} else {
-				update_reg_reg(entry->target.reg_num, entry->value.reg_num);
-			}
-        	break;
-	    case VALUE_DEREF:
-			if (entry->type == TARGET_REGISTER) {
-				load_reg_from_mem(entry->target.reg_num, entry->value.reg_num);
-			}
-        	break;
-	}
+    if (entry->enabled == NULL) {
+        gen_inline_update_entry(entry);
+        return;
+    }
+
+    /* The gate lives in the plugin, not guest memory. Load it in generated
+       code so toggling it after a snapshot also affects translated TBs. */
+    TCGLabel *disabled = gen_new_label();
+    TCGv_ptr enabled_ptr = tcg_constant_ptr((intptr_t)entry->enabled);
+    TCGv_i32 enabled = tcg_temp_ebb_new_i32();
+
+    tcg_gen_ld8u_i32(enabled, enabled_ptr, 0);
+    tcg_gen_brcondi_i32(TCG_COND_EQ, enabled, 0, disabled);
+    gen_inline_update_entry(entry);
+    gen_set_label(disabled);
+
+    tcg_temp_free_i32(enabled);
+    tcg_temp_free_ptr(enabled_ptr);
 }
 
 //TODO:
